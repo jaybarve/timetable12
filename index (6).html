@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Timetable Generator - NEP 2020</title>
+<style>
+    :root{
+        --primary   : #2575fc;
+        --secondary : #6a11cb;
+        --bg-dark   : #0a0f1a;
+        --glow-blue : rgba(38,117,252,.3);
+        --glow-purple: rgba(106,17,203,.3);
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+    body{
+        background:linear-gradient(135deg,#0a0f1a 0%,#0d1525 30%,#0a0f1a 60%,#0d1525 100%);
+        background-size:400% 400%;
+        animation:bgMove 12s ease infinite;
+        min-height:100vh;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+    }
+    @keyframes bgMove{
+        0%{background-position:0% 50%;}
+        50%{background-position:100% 50%;}
+        100%{background-position:0% 50%;}
+    }
+
+    header{width:100%;padding:20px;text-align:center;color:#fff;}
+    header h1{font-size:2rem;}
+    header p{opacity:0.8;}
+
+    .container{
+        background:#fff;
+        width:95%;
+        max-width:1200px;
+        margin:20px;
+        padding:25px;
+        border-radius:25px;
+        box-shadow:0 10px 40px rgba(0,0,0,0.2);
+        animation:fadeIn .7s ease;
+        position:relative;
+    }
+
+    .tab,.ai-box button,form button{position:relative;overflow:hidden;}
+    .tab::after,.ai-box button::after,form button::after{
+        content:"";position:absolute;inset:0;border-radius:inherit;
+        background:linear-gradient(135deg,var(--secondary),var(--primary));
+        opacity:0;transition:opacity .4s;filter:blur(8px);z-index:-1;
+    }
+    .tab:hover::after,.tab.active::after,
+    .ai-box button:hover::after,
+    form button:hover::after{opacity:.6;}
+    .tab,.ai-box button,form button{color:#fff;text-shadow:0 0 4px #fff;}
+
+    .tabs{display:flex;justify-content:center;margin-bottom:25px;gap:15px;}
+    .tab{
+        flex:1;max-width:200px;text-align:center;padding:12px;cursor:pointer;
+        border-radius:15px;background:#f3f4f6;font-weight:500;transition:.3s;
+    }
+    .tab.active{
+        background:linear-gradient(135deg,var(--secondary),var(--primary));
+        color:#fff;box-shadow:0 5px 20px rgba(0,0,0,.2);
+    }
+
+    .section{display:none;}
+    .section.active{display:block;}
+
+    form{
+        display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+        gap:15px;margin-bottom:20px;
+    }
+    form input,form select{
+        padding:12px;border:1px solid #ccc;border-radius:12px;font-size:0.95rem;
+    }
+    form input:focus,form select:focus{
+        border-color:var(--primary);outline:none;
+        box-shadow:0 0 5px rgba(37,117,252,.4);
+    }
+    form button{
+        grid-column:1/-1;padding:12px;
+        background:linear-gradient(135deg,var(--primary),var(--secondary));
+        border:none;border-radius:12px;cursor:pointer;font-weight:600;
+        transition:.3s;
+    }
+    form button:hover{opacity:0.9;transform:translateY(-2px);}
+
+    #courseList{
+        background:#f9fafb;padding:15px;border-radius:15px;margin-bottom:20px;
+        max-height:150px;overflow-y:auto;
+    }
+    #courseList h3{margin-bottom:10px;}
+    #courseList p{font-size:0.9rem;color:#333;}
+
+    .timetable-wrapper{margin-top:20px;}
+    .timetable-title{font-size:1.2rem;font-weight:600;margin-bottom:10px;color:var(--primary);}
+    table{
+        width:100%;border-collapse:collapse;overflow:hidden;border-radius:15px;
+    }
+    th,td{border:1px solid #ddd;padding:10px;text-align:center;font-size:0.9rem;}
+    th{background:var(--primary);color:#fff;}
+    td{background:#f9fafb;transition:.3s;}
+    td.filled{
+        background:linear-gradient(135deg,var(--secondary),var(--primary));
+        color:#fff;font-weight:600;box-shadow:0 0 12px var(--glow-purple);
+    }
+
+    .ai-box{
+        display:flex;align-items:center;gap:10px;background:#f1f7ff;
+        padding:12px;border-radius:15px;margin-bottom:20px;
+        box-shadow:0 5px 15px rgba(0,0,0,.1);
+    }
+    .ai-box img{width:32px;}
+    .ai-box input{flex:1;border:none;padding:10px;border-radius:12px;}
+    .ai-box input:focus{outline:none;}
+    .ai-box button{padding:10px 20px;background:linear-gradient(135deg,#28a745,#218838);}
+
+    .nep-features{
+        display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+        gap:20px;margin-top:20px;
+    }
+    .feature-card{
+        background:#f9fafb;padding:20px;border-radius:18px;
+        box-shadow:0 6px 20px rgba(0,0,0,.1);
+        transition:.3s;cursor:pointer;animation:pulse 6s ease-in-out infinite;
+    }
+    .feature-card:hover{transform:translateY(-5px);box-shadow:0 12px 25px rgba(0,0,0,.15);}
+    .feature-card h4{color:var(--primary);margin-bottom:8px;}
+    .feature-card p{font-size:0.9rem;color:#333;line-height:1.5;}
+
+    @keyframes pulse{0%,100%{box-shadow:0 6px 20px rgba(0,0,0,.1);}50%{box-shadow:0 12px 30px rgba(0,0,0,.25);}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+
+    .container::before{
+        content:"";position:absolute;inset:0;
+        background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+        background-size:20px 20px;pointer-events:none;opacity:.6;
+    }
+</style>
+</head>
+<body>
+<header>
+    <h1>📅 AI-Based Timetable Generator</h1>
+    <p>Aligned with NEP 2020 | Multidisciplinary | Modern UI</p>
+</header>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('manual',event)">📘 Manual</div>
+        <div class="tab" onclick="switchTab('ai',event)">🤖 AI Generator</div>
+        <div class="tab" onclick="switchTab('nep',event)">📖 NEP 2020 Features</div>
+    </div>
+
+    <!-- Manual Section -->
+    <div id="manual" class="section active">
+        <form id="courseForm">
+            <input type="text" id="courseName" placeholder="Course Name" required>
+            <input type="text" id="department" placeholder="Department" required>
+            <input type="number" id="duration" placeholder="Duration (hrs)" min="1" max="3" required>
+            <select id="classroom" required>
+                <option value="">Select Classroom</option>
+                <option>Room A</option><option>Room B</option><option>Room C</option>
+                <option>Lab 1</option><option>Lab 2</option>
+            </select>
+            <button type="submit">➕ Add Course</button>
+        </form>
+        <div id="courseList"></div>
+        <button id="generateBtn" style="margin-bottom:20px;">⚡ Generate Timetable</button>
+        <div class="timetable-wrapper" id="timetableContainer"></div>
+    </div>
+
+    <!-- AI Section -->
+    <div id="ai" class="section">
+        <div class="ai-box">
+            <img src="https://img.icons8.com/fluency/48/robot.png" alt="AI">
+            <input type="text" id="aiPrompt" placeholder="e.g. Generate 5 courses for CSE with Room A & Lab 1">
+            <button onclick="generateAITimetable()">Generate</button>
+        </div>
+        <div class="timetable-wrapper" id="aiTimetableContainer"></div>
+    </div>
+
+    <!-- NEP Features Section -->
+    <div id="nep" class="section">
+        <h2 style="margin-bottom:15px;color:var(--primary);">🌐 Key Features of NEP 2020</h2>
+        <div class="nep-features">
+            <div class="feature-card">
+                <h4>📚 New Curriculum Structure</h4>
+                <p>NEP 2020 introduces the 5+3+3+4 model aligned with cognitive development:<br>
+                - Foundational (5 yrs): Preschool–Grade 2<br>
+                - Preparatory (3 yrs): Grades 3–5<br>
+                - Middle (3 yrs): Grades 6–8<br>
+                - Secondary (4 yrs): Grades 9–12</p>
+            </div>
+            <div class="feature-card"><h4>🗣️ Mother Tongue & Multilingualism</h4><p>Early education in mother tongue/regional languages till Grade 5 (preferably 8).</p></div>
+            <div class="feature-card"><h4>🎨 No Rigid Streams</h4><p>Students can mix subjects across science, arts, commerce (e.g., Physics with History).</p></div>
+            <div class="feature-card"><h4>💡 Holistic & Skill-Based Education</h4><p>Includes coding, vocational training, life skills, experiential learning.</p></div>
+            <div class="feature-card"><h4>📝 Assessment Reforms</h4><p>Less rote learning, more competency-based evaluations.</p></div>
+            <div class="feature-card"><h4>⚖️ Inclusive & Equitable Education</h4><p>Scholarships and tailored curricula for marginalized groups.</p></div>
+            <div class="feature-card"><h4>🔧 Vocational Education</h4><p>Internships and practical training from early grades.</p></div>
+            <div class="feature-card"><h4>💻 Technology Integration</h4><p>Emphasis on digital literacy, AI/ML, and equitable access.</p></div>
+            <div class="feature-card"><h4>🎓 Higher Education Reforms</h4><p>Flexible degrees, multiple entry/exit, credit-based learning.</p></div>
+            <div class="feature-card"><h4>🔬 Focus on Research</h4><p>Supported via National Research Foundation (NRF).</p></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let courses = {};
+let departments = new Set();
+
+// Switch Tabs
+function switchTab(tab,e){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    e.target.classList.add('active');
+}
+
+// Add Course manually
+document.getElementById('courseForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    let name=document.getElementById('courseName').value.trim();
+    let dept=document.getElementById('department').value.trim();
+    let duration=parseInt(document.getElementById('duration').value);
+    let room=document.getElementById('classroom').value;
+
+    if(!courses[dept]) courses[dept]=[];
+    courses[dept].push({name,duration,room});
+    departments.add(dept);
+
+    displayCourses();
+    this.reset();
+});
+
+function displayCourses(){
+    let out="<h3>📋 Courses Added:</h3>";
+    departments.forEach(d=>{
+        out+=`<h4>${d} Department</h4>`;
+        courses[d].forEach((c,i)=>{out+=`<p>${i+1}. ${c.name} (${c.duration}h, ${c.room})</p>`});
+    });
+    document.getElementById('courseList').innerHTML=out;
+}
+
+// Generate Manual Timetable
+document.getElementById('generateBtn').addEventListener('click',()=>{
+    let days=["Mon","Tue","Wed","Thu","Fri"];
+    let slots=["9-10","10-11","11-12","12-1","2-3","3-4","4-5"];
+    let container=document.getElementById('timetableContainer');
+    container.innerHTML="";
+
+    departments.forEach(dept=>{
+        let tbl=`<div class='timetable-title'>${dept} Department</div>
+                  <table><thead><tr><th>Day/Time</th>`;
+        slots.forEach(s=>tbl+=`<th>${s}</th>`);
+        tbl+=`</tr></thead><tbody>`;
+        for(let i=0;i<days.length;i++){
+            tbl+=`<tr><td>${days[i]}</td>`;
+            for(let j=0;j<slots.length;j++) tbl+=`<td></td>`;
+            tbl+=`</tr>`;
+        }
+        tbl+=`</tbody></table>`;
+        container.innerHTML+=tbl;
+    });
+
+    // Fill timetable randomly
+    departments.forEach(dept=>{
+        let deptTbl=container.querySelectorAll("table")[Array.from(departments).indexOf(dept)];
+        courses[dept].forEach(course=>{
+            let hrs=course.duration;
+            while(hrs>0){
+                let d=Math.floor(Math.random()*5);
+                let s=Math.floor(Math.random()*7)+1;
+                let cell=deptTbl.rows[d+1].cells[s];
+                if(cell.innerText===""){
+                    cell.innerText=`${course.name}\n(${course.room})`;
+                    cell.classList.add("filled");
+                    hrs--;
+                }
+            }
+        });
+    });
+});
+
+// AI Generator (demo logic)
+function generateAITimetable(){
+    let prompt=document.getElementById("aiPrompt").value;
+    let container=document.getElementById("aiTimetableContainer");
+    container.innerHTML="";
+    if(prompt.trim()===""){alert("Enter a prompt");return;}
+
+    let dept="AI Generated";
+    let days=["Mon","Tue","Wed","Thu","Fri"];
+    let slots=["9-10","10-11","11-12","12-1","2-3","3-4","4-5"];
+    let tbl=`<div class='timetable-title'>${dept}</div>
+              <table><thead><tr><th>Day/Time</th>`;
+    slots.forEach(s=>tbl+=`<th>${s}</th>`);
+    tbl+=`</tr></thead><tbody>`;
+    for(let i=0;i<days.length;i++){
+        tbl+=`<tr><td>${days[i]}</td>`;
+        for(let j=0;j<slots.length;j++) tbl+=`<td></td>`;
+        tbl+=`</tr>`;
+    }
+    tbl+=`</tbody></table>`;
+    container.innerHTML=tbl;
+
+    let deptTbl=container.querySelector("table");
+    let subjects=["AI","ML","IoT","CyberSec","Cloud"];
+    subjects.forEach(sub=>{
+        let placed=false;
+        while(!placed){
+            let d=Math.floor(Math.random()*5);
+            let s=Math.floor(Math.random()*7)+1;
+            let cell=deptTbl.rows[d+1].cells[s];
+            if(cell.innerText===""){
+                cell.innerText=sub;
+                cell.classList.add("filled");
+                placed=true;
+            }
+        }
+    });
+}
+</script>
+</body>
+</html>
